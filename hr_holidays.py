@@ -30,29 +30,49 @@ from datetime import datetime
 class hr_holidays(osv.osv):
     _inherit = "hr.holidays"
 
-    def onchange_date_from(self, cr, uid, ids, date_to, date_from):
+    def onchange_date_from(self, cr, uid, ids, date_to, date_from, employee_id=None):
         result = {}
         company = self.pool.get('res.users').browse(cr, uid, uid).company_id
 
         if date_to and date_from:
-            if company.country_id:
+            employee = self.pool.get('hr.employee').browse(cr, uid, employee_id)
+            available_weekdays = []
+            if employee.contract_id and employee.contract_id.working_hours:
                 # List available weekdays
-                available_weekdays = []
-                if company.workingday_monday:
+                days = list(set([attendance.dayofweek for attendance in employee.contract_id.working_hours.attendance_ids]))
+                if '0' in days:
                     available_weekdays.append(MO)
-                if company.workingday_tuesday:
+                if '1' in days:
                     available_weekdays.append(TU)
-                if company.workingday_wednesday:
+                if '2' in days:
                     available_weekdays.append(WE)
-                if company.workingday_thursday:
+                if '3' in days:
                     available_weekdays.append(TH)
-                if company.workingday_friday:
+                if '4' in days:
                     available_weekdays.append(FR)
-                if company.workingday_saturday:
+                if '5' in days:
                     available_weekdays.append(SA)
-                if company.workingday_sunday:
+                if '6' in days:
                     available_weekdays.append(SU)
+            if company.country_id:
+                if not available_weekdays:
+                    # List available weekdays
+                    if company.workingday_monday:
+                        available_weekdays.append(MO)
+                    if company.workingday_tuesday:
+                        available_weekdays.append(TU)
+                    if company.workingday_wednesday:
+                        available_weekdays.append(WE)
+                    if company.workingday_thursday:
+                        available_weekdays.append(TH)
+                    if company.workingday_friday:
+                        available_weekdays.append(FR)
+                    if company.workingday_saturday:
+                        available_weekdays.append(SA)
+                    if company.workingday_sunday:
+                        available_weekdays.append(SU)
 
+            if available_weekdays:
                 # List all possible days
                 diff_day = rruleset()
                 diff_day.rrule(rrule(
@@ -65,15 +85,16 @@ class hr_holidays(osv.osv):
                 # Exclude not worked days from list
                 dates_list = list(diff_day)
                 # Deletes the not working days for the selected country
-                diff_day = self.pool.get('res.country.workdates').not_worked(cr, uid, company.country_id.id, diff_day, dates_list[0], dates_list[-1])
-                dates_list = list(diff_day)
+                if company.country_id:
+                    diff_day = self.pool.get('res.country.workdates').not_worked(cr, uid, company.country_id.id, diff_day, dates_list[0], dates_list[-1])
+                    dates_list = list(diff_day)
                 result['value'] = {
-                    'number_of_days_temp': len(list(diff_day))
+                    'number_of_days_temp': len(dates_list)
                 }
             else:
                 diff_day = self._get_number_of_days(date_from, date_to)
                 result['value'] = {
-                    'number_of_days_temp': round(diff_day)+1
+                    'number_of_days_temp': round(diff_day) + 1
                 }
             return result
         result['value'] = {

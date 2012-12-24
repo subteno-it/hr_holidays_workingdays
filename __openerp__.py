@@ -29,6 +29,7 @@
     'complexity': "easy",
     'description': """
 Compute days of holiday depending working days
+Working days will got from working schedule of employee's contract or employee's company if not defined
     """,
     'author': 'SYLEAM',
     'website': 'http://www.syleam.fr/',
@@ -36,10 +37,12 @@ Compute days of holiday depending working days
         'base',
         'base_workingdays',
         'hr_holidays',
+        'hr_contract',
     ],
     'init_xml': [],
     'images': [],
     'update_xml': [
+        'hr_holidays_view.xml',
     ],
     'demo_xml': [],
     'test': [],
