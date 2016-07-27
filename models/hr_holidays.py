@@ -24,7 +24,7 @@
 
 from openerp.osv import osv
 import datetime
-from dateutil.rrule import rrule, rruleset, YEARLY, DAILY, HOURLY, MO, TU, WE, TH, FR, SA, SU
+from dateutil.rrule import rrule, rruleset, HOURLY, MO, TU, WE, TH, FR, SA, SU
 from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT
 from dateutil import tz
 import time
@@ -33,22 +33,19 @@ import time
 class HrHolidays(osv.osv):
     _inherit = 'hr.holidays'
 
-    def _get_nb_of_days(self, cr, uid, date_from, date_to):
+    def _get_nb_of_days(self, cr, uid, from_dt, to_dt, employee_id):
         """Returns a float equals to the timedelta between two dates given as string."""
         user = self.pool['res.users'].browse(cr, uid, uid)
         company = user.company_id
         local_zone = tz.gettz(user.tz or 'Europe/Paris')
-        from_dt = datetime.datetime.fromtimestamp(time.mktime(time.strptime(date_from, DEFAULT_SERVER_DATETIME_FORMAT)))
         local_time = local_zone.utcoffset(from_dt).total_seconds() / 60 / 60
         opening_time = int(company.opening_time - local_time)
         closing_time = int(company.closing_time - local_time)
         midday = ((closing_time - opening_time) / 2) + opening_time
-        from_dt = datetime.datetime.fromtimestamp(time.mktime(time.strptime(date_from, DEFAULT_SERVER_DATETIME_FORMAT)))
         if int(from_dt.hour) < midday:
             from_dt = from_dt.replace(hour=opening_time, minute=0, second=0)
         else:
             from_dt = from_dt.replace(hour=midday, minute=0, second=0)
-        to_dt = datetime.datetime.fromtimestamp(time.mktime(time.strptime(date_to, DEFAULT_SERVER_DATETIME_FORMAT)))
         if int(to_dt.hour) < midday:
             to_dt = to_dt.replace(hour=midday, minute=0, second=0)
         else:
@@ -58,20 +55,40 @@ class HrHolidays(osv.osv):
         diff_day.rrule(rrule(HOURLY, byhour=[opening_time + 1, closing_time - 1], dtstart=from_dt, until=to_dt))
         # Exclude all days not worked
         available_weekdays = []
-        if not company.workingday_monday:
-            available_weekdays.append(MO)
-        if not company.workingday_tuesday:
-            available_weekdays.append(TU)
-        if not company.workingday_wednesday:
-            available_weekdays.append(WE)
-        if not company.workingday_thursday:
-            available_weekdays.append(TH)
-        if not company.workingday_friday:
-            available_weekdays.append(FR)
-        if not company.workingday_saturday:
-            available_weekdays.append(SA)
-        if not company.workingday_sunday:
-            available_weekdays.append(SU)
+        if employee_id:
+            employee = self.pool.get('hr.employee').browse(cr, uid, employee_id)
+            if employee.contract_id and employee.contract_id.working_hours:
+                # List available weekdays
+                days = list(set([attendance.dayofweek for attendance in employee.contract_id.working_hours.attendance_ids]))
+                if '0' in days:
+                    available_weekdays.append(MO)
+                if '1' in days:
+                    available_weekdays.append(TU)
+                if '2' in days:
+                    available_weekdays.append(WE)
+                if '3' in days:
+                    available_weekdays.append(TH)
+                if '4' in days:
+                    available_weekdays.append(FR)
+                if '5' in days:
+                    available_weekdays.append(SA)
+                if '6' in days:
+                    available_weekdays.append(SU)
+        if not available_weekdays:
+            if not company.workingday_monday:
+                available_weekdays.append(MO)
+            if not company.workingday_tuesday:
+                available_weekdays.append(TU)
+            if not company.workingday_wednesday:
+                available_weekdays.append(WE)
+            if not company.workingday_thursday:
+                available_weekdays.append(TH)
+            if not company.workingday_friday:
+                available_weekdays.append(FR)
+            if not company.workingday_saturday:
+                available_weekdays.append(SA)
+            if not company.workingday_sunday:
+                available_weekdays.append(SU)
         diff_day.exrule(rrule(HOURLY, byweekday=available_weekdays, dtstart=from_dt))
         diff_day = self.pool['res.country.workdates'].not_worked(cr, uid, company.country_id.id, diff_day, from_dt, to_dt)
         diff_day = diff_day.count() / 2.
@@ -88,12 +105,15 @@ class HrHolidays(osv.osv):
         result = super(HrHolidays, self).onchange_date_from(cr, uid, ids, date_to, date_from)
         # Compute and update the number of days
         if (date_to and date_from) and (date_from <= date_to):
-            diff_day, date_from, date_to = self._get_nb_of_days(cr, uid, date_from, date_to)
-            result = {'value': {
-                'number_of_days_temp': diff_day,
-                'date_from': date_from,
-                'date_to': date_to,
-            }}
+            from_dt = datetime.datetime.fromtimestamp(time.mktime(time.strptime(date_from, DEFAULT_SERVER_DATETIME_FORMAT)))
+            to_dt = datetime.datetime.fromtimestamp(time.mktime(time.strptime(date_to, DEFAULT_SERVER_DATETIME_FORMAT)))
+            if (to_dt - from_dt).days >= 1:
+                diff_day, date_from, date_to = self._get_nb_of_days(cr, uid, from_dt, to_dt)
+                result = {'value': {
+                    'number_of_days_temp': diff_day,
+                    'date_from': date_from,
+                    'date_to': date_to,
+                }}
         return result
 
     def onchange_date_to(self, cr, uid, ids, date_to, date_from):
@@ -103,13 +123,15 @@ class HrHolidays(osv.osv):
         result = super(HrHolidays, self).onchange_date_to(cr, uid, ids, date_to, date_from)
         # Compute and update the number of days
         if (date_to and date_from) and (date_from <= date_to):
-            diff_day, date_from, date_to = self._get_nb_of_days(cr, uid, date_from, date_to)
-            result = {'value': {
-                'number_of_days_temp': diff_day,
-                'date_from': date_from,
-                'date_to': date_to,
-            }}
+            from_dt = datetime.datetime.fromtimestamp(time.mktime(time.strptime(date_from, DEFAULT_SERVER_DATETIME_FORMAT)))
+            to_dt = datetime.datetime.fromtimestamp(time.mktime(time.strptime(date_to, DEFAULT_SERVER_DATETIME_FORMAT)))
+            if (to_dt - from_dt).days >= 1:
+                diff_day, date_from, date_to = self._get_nb_of_days(cr, uid, from_dt, to_dt)
+                result = {'value': {
+                    'number_of_days_temp': diff_day,
+                    'date_from': date_from,
+                    'date_to': date_to,
+                }}
         return result
-
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
