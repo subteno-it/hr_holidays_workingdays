@@ -33,7 +33,7 @@ import time
 class HrHolidays(osv.osv):
     _inherit = 'hr.holidays'
 
-    def _get_nb_of_days(self, cr, uid, from_dt, to_dt, employee_id):
+    def _get_nb_of_days(self, cr, uid, from_dt, to_dt, employee):
         """Returns a float equals to the timedelta between two dates given as string."""
         user = self.pool['res.users'].browse(cr, uid, uid)
         company = user.company_id
@@ -55,25 +55,23 @@ class HrHolidays(osv.osv):
         diff_day.rrule(rrule(HOURLY, byhour=[opening_time + 1, closing_time - 1], dtstart=from_dt, until=to_dt))
         # Exclude all days not worked
         available_weekdays = []
-        if employee_id:
-            employee = self.pool.get('hr.employee').browse(cr, uid, employee_id)
-            if employee.contract_id and employee.contract_id.working_hours:
-                # List available weekdays
-                days = list(set([attendance.dayofweek for attendance in employee.contract_id.working_hours.attendance_ids]))
-                if '0' in days:
-                    available_weekdays.append(MO)
-                if '1' in days:
-                    available_weekdays.append(TU)
-                if '2' in days:
-                    available_weekdays.append(WE)
-                if '3' in days:
-                    available_weekdays.append(TH)
-                if '4' in days:
-                    available_weekdays.append(FR)
-                if '5' in days:
-                    available_weekdays.append(SA)
-                if '6' in days:
-                    available_weekdays.append(SU)
+        if employee and employee.contract_id and employee.contract_id.working_hours:
+            # List available weekdays
+            days = list(set([attendance.dayofweek for attendance in employee.contract_id.working_hours.attendance_ids]))
+            if '0' in days:
+                available_weekdays.append(MO)
+            if '1' in days:
+                available_weekdays.append(TU)
+            if '2' in days:
+                available_weekdays.append(WE)
+            if '3' in days:
+                available_weekdays.append(TH)
+            if '4' in days:
+                available_weekdays.append(FR)
+            if '5' in days:
+                available_weekdays.append(SA)
+            if '6' in days:
+                available_weekdays.append(SU)
         if not available_weekdays:
             if not company.workingday_monday:
                 available_weekdays.append(MO)
@@ -108,7 +106,7 @@ class HrHolidays(osv.osv):
             from_dt = datetime.datetime.fromtimestamp(time.mktime(time.strptime(date_from, DEFAULT_SERVER_DATETIME_FORMAT)))
             to_dt = datetime.datetime.fromtimestamp(time.mktime(time.strptime(date_to, DEFAULT_SERVER_DATETIME_FORMAT)))
             if (to_dt - from_dt).days >= 1:
-                diff_day, date_from, date_to = self._get_nb_of_days(cr, uid, from_dt, to_dt)
+                diff_day, date_from, date_to = self._get_nb_of_days(cr, uid, from_dt, to_dt, False)
                 result = {'value': {
                     'number_of_days_temp': diff_day,
                     'date_from': date_from,
@@ -126,7 +124,7 @@ class HrHolidays(osv.osv):
             from_dt = datetime.datetime.fromtimestamp(time.mktime(time.strptime(date_from, DEFAULT_SERVER_DATETIME_FORMAT)))
             to_dt = datetime.datetime.fromtimestamp(time.mktime(time.strptime(date_to, DEFAULT_SERVER_DATETIME_FORMAT)))
             if (to_dt - from_dt).days >= 1:
-                diff_day, date_from, date_to = self._get_nb_of_days(cr, uid, from_dt, to_dt)
+                diff_day, date_from, date_to = self._get_nb_of_days(cr, uid, from_dt, to_dt, False)
                 result = {'value': {
                     'number_of_days_temp': diff_day,
                     'date_from': date_from,
