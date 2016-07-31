@@ -58,19 +58,19 @@ class HrHolidays(osv.osv):
         if employee and employee.contract_id and employee.contract_id.working_hours:
             # List available weekdays
             days = list(set([attendance.dayofweek for attendance in employee.contract_id.working_hours.attendance_ids]))
-            if '0' in days:
+            if '0' not in days:
                 available_weekdays.append(MO)
-            if '1' in days:
+            if '1' not in days:
                 available_weekdays.append(TU)
-            if '2' in days:
+            if '2' not in days:
                 available_weekdays.append(WE)
-            if '3' in days:
+            if '3' not in days:
                 available_weekdays.append(TH)
-            if '4' in days:
+            if '4' not in days:
                 available_weekdays.append(FR)
-            if '5' in days:
+            if '5' not in days:
                 available_weekdays.append(SA)
-            if '6' in days:
+            if '6' not in days:
                 available_weekdays.append(SU)
         if not available_weekdays:
             if not company.workingday_monday:
