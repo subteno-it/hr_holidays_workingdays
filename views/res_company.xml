@@ -32,8 +32,11 @@
                 <xpath expr="//separator[@name='working_day']" position="before">
                     <separator string="Opening times" colspan="4"/>
                     <group colspan="4" col="4">
-                        <field name="opening_time"/>
-                        <field name="closing_time"/>
+                        <field name="opening_time" widget="float_time"/>
+                        <field name="holidays_time_hours_id"/>
+                        <newline/>
+                        <field name="closing_time" widget="float_time"/>
+                        <field name="holidays_time_days_id"/>
                     </group>
                     <newline/>
                 </xpath>

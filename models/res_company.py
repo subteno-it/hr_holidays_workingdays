@@ -22,12 +22,28 @@
 #
 ##############################################################################
 
-from openerp import models, fields
+from openerp import models, fields, api
 
 
 class ResCompany(models.Model):
     _inherit = 'res.company'
 
+    @api.model
+    def _get_uom_hours(self):
+        try:
+            return self.env.ref("product.product_uom_hour")
+        except ValueError:
+            return False
+
+    @api.model
+    def _get_uom_days(self):
+        try:
+            return self.env.ref("product.product_uom_day")
+        except ValueError:
+            return False
+
+    holidays_time_hours_id = fields.Many2one('product.uom', string='Holidays Hours UoM', default=_get_uom_hours)
+    holidays_time_days_id = fields.Many2one('product.uom', string='Holidays Days UoM', default=_get_uom_days)
     opening_time = fields.Float(string='Opening Time', digits=(16, 2), default=8, )
     closing_time = fields.Float(string='Closing Time', digits=(16, 2), default=18, )
 

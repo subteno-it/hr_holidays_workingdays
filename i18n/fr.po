@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 9.0e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-07-30 16:10+0000\n"
-"PO-Revision-Date: 2016-07-30 16:10+0000\n"
+"POT-Creation-Date: 2016-07-31 13:27+0000\n"
+"PO-Revision-Date: 2016-07-31 13:27+0000\n"
 "Last-Translator: <>\n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
@@ -24,6 +24,16 @@ msgstr "Heure de fermeture"
 #: model:ir.model,name:hr_holidays_workingdays.model_res_company
 msgid "Companies"
 msgstr "Sociétés"
+
+#. module: hr_holidays_workingdays
+#: model:ir.model.fields,field_description:hr_holidays_workingdays.field_res_company_holidays_time_days_id
+msgid "Holidays Days UoM"
+msgstr "UdM jour pour le calcul des congés"
+
+#. module: hr_holidays_workingdays
+#: model:ir.model.fields,field_description:hr_holidays_workingdays.field_res_company_holidays_time_hours_id
+msgid "Holidays Hours UoM"
+msgstr "UdM Heure pour le calcul des congés"
 
 #. module: hr_holidays_workingdays
 #: model:ir.model,name:hr_holidays_workingdays.model_hr_holidays

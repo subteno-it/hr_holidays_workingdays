@@ -94,6 +94,16 @@ class HrHolidays(osv.osv):
         date_to = to_dt.strftime(DEFAULT_SERVER_DATETIME_FORMAT)
         return diff_day, date_from, date_to
 
+    def _get_nb_of_hours(self, cr, uid, from_dt, to_dt):
+        diff_hours = (to_dt - from_dt).total_seconds() / 3600
+        product_uom = self.pool['product.uom']
+        user = self.pool['res.users'].browse(cr, uid, uid)
+        company = user.company_id
+        diff_day = product_uom._compute_qty(cr, uid, company.holidays_time_hours_id.id, diff_hours, company.holidays_time_days_id.id)
+        date_from = from_dt.strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+        date_to = to_dt.strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+        return diff_day, date_from, date_to
+
     def onchange_date_from(self, cr, uid, ids, date_to, date_from):
         """
         If there are no date set for date_to, automatically set one 8 hours later than
@@ -112,6 +122,13 @@ class HrHolidays(osv.osv):
                     'date_from': date_from,
                     'date_to': date_to,
                 }}
+            else:
+                diff_day, date_from, date_to = self._get_nb_of_hours(cr, uid, from_dt, to_dt)
+                result = {'value': {
+                    'number_of_days_temp': diff_day,
+                    'date_from': date_from,
+                    'date_to': date_to,
+                }}
         return result
 
     def onchange_date_to(self, cr, uid, ids, date_to, date_from):
@@ -125,6 +142,13 @@ class HrHolidays(osv.osv):
             to_dt = datetime.datetime.fromtimestamp(time.mktime(time.strptime(date_to, DEFAULT_SERVER_DATETIME_FORMAT)))
             if (to_dt - from_dt).days >= 1:
                 diff_day, date_from, date_to = self._get_nb_of_days(cr, uid, from_dt, to_dt, False)
+                result = {'value': {
+                    'number_of_days_temp': diff_day,
+                    'date_from': date_from,
+                    'date_to': date_to,
+                }}
+            else:
+                diff_day, date_from, date_to = self._get_nb_of_hours(cr, uid, from_dt, to_dt)
                 result = {'value': {
                     'number_of_days_temp': diff_day,
                     'date_from': date_from,
