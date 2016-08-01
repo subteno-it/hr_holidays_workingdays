@@ -24,7 +24,7 @@
 
 from openerp.osv import osv
 import datetime
-from dateutil.rrule import rrule, rruleset, HOURLY, MO, TU, WE, TH, FR, SA, SU
+from dateutil.rrule import rrule, rruleset, HOURLY, MO, TU, WE, TH, FR, SA, SU, weekdays
 from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT
 from dateutil import tz
 import time
@@ -50,44 +50,61 @@ class HrHolidays(osv.osv):
             to_dt = to_dt.replace(hour=midday, minute=0, second=0)
         else:
             to_dt = to_dt.replace(hour=closing_time, minute=0, second=0)
+        company_daysoff = []
+        company_workingdays = []
+        employee_workingdays = []
+        if company.workingday_monday:
+            company_workingdays.append(MO)
+        if company.workingday_tuesday:
+            company_workingdays.append(TU)
+        if company.workingday_wednesday:
+            company_workingdays.append(WE)
+        if company.workingday_thursday:
+            company_workingdays.append(TH)
+        if company.workingday_friday:
+            company_workingdays.append(FR)
+        if company.workingday_saturday:
+            company_workingdays.append(SA)
+        if company.workingday_sunday:
+            company_workingdays.append(SU)
+
+        company_daysoff = list(set(weekdays) - set(company_workingdays))
+
+        # If employee doen't work all days of company, we must compute the day of return to work.
+        # Eg: employee doesn't work the wednesday and request leave tuesday, we must count 2 days
+        if employee and employee.contract_id and employee.contract_id.working_hours:
+            # List available weekdays
+            days = list(set([attendance.dayofweek for attendance in employee.contract_id.working_hours.attendance_ids]))
+            if '0' in days:
+                employee_workingdays.append(MO)
+            if '1' in days:
+                employee_workingdays.append(TU)
+            if '2' in days:
+                employee_workingdays.append(WE)
+            if '3' in days:
+                employee_workingdays.append(TH)
+            if '4' in days:
+                employee_workingdays.append(FR)
+            if '5' in days:
+                employee_workingdays.append(SA)
+            if '6' in days:
+                employee_workingdays.append(SU)
+            employee_notworkingdays = list(set(company_workingdays) - set(employee_workingdays))
+            if employee_notworkingdays:
+                to_dt_temp = to_dt
+                to_dt_temp_next = to_dt
+                while True:
+                    to_dt_temp_next += datetime.timedelta(days=1)
+                    if weekdays[to_dt_temp_next.weekday()] in company_workingdays:
+                        if weekdays[to_dt_temp_next.weekday()] in employee_workingdays:
+                            break
+                        to_dt_temp = to_dt_temp_next
+                to_dt = to_dt_temp
         diff_day = rruleset()
         # Search all date between from and to date
         diff_day.rrule(rrule(HOURLY, byhour=[opening_time + 1, closing_time - 1], dtstart=from_dt, until=to_dt))
         # Exclude all days not worked
-        available_weekdays = []
-        if employee and employee.contract_id and employee.contract_id.working_hours:
-            # List available weekdays
-            days = list(set([attendance.dayofweek for attendance in employee.contract_id.working_hours.attendance_ids]))
-            if '0' not in days:
-                available_weekdays.append(MO)
-            if '1' not in days:
-                available_weekdays.append(TU)
-            if '2' not in days:
-                available_weekdays.append(WE)
-            if '3' not in days:
-                available_weekdays.append(TH)
-            if '4' not in days:
-                available_weekdays.append(FR)
-            if '5' not in days:
-                available_weekdays.append(SA)
-            if '6' not in days:
-                available_weekdays.append(SU)
-        if not available_weekdays:
-            if not company.workingday_monday:
-                available_weekdays.append(MO)
-            if not company.workingday_tuesday:
-                available_weekdays.append(TU)
-            if not company.workingday_wednesday:
-                available_weekdays.append(WE)
-            if not company.workingday_thursday:
-                available_weekdays.append(TH)
-            if not company.workingday_friday:
-                available_weekdays.append(FR)
-            if not company.workingday_saturday:
-                available_weekdays.append(SA)
-            if not company.workingday_sunday:
-                available_weekdays.append(SU)
-        diff_day.exrule(rrule(HOURLY, byweekday=available_weekdays, dtstart=from_dt))
+        diff_day.exrule(rrule(HOURLY, byweekday=company_daysoff, dtstart=from_dt))
         diff_day = self.pool['res.country.workdates'].not_worked(cr, uid, company.country_id.id, diff_day, from_dt, to_dt)
         diff_day = diff_day.count() / 2.
         date_from = from_dt.strftime(DEFAULT_SERVER_DATETIME_FORMAT)
